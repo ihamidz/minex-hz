@@ -1,51 +1,49 @@
-# Copyright (c) Streamlit Inc. (2018-2022) Snowflake Inc. (2022)
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import ruptures as rpt
 
-import streamlit as st
-from streamlit.logger import get_logger
+# Step 3: Load your geochemical dataset
+data = pd.read_csv('NDI2.csv')
 
-LOGGER = get_logger(__name__)
+# Step 4: Preprocess the data
+# Assuming the first column is the sample id and the rest are elements
+X = data.iloc[:, 1:].values  # Adjust the range to cover all 31 variables
 
+# Step 5: Standardize the data
+standardized_data = (X - np.mean(X, axis=0)) / np.std(X, axis=0)
 
-def run():
-    st.set_page_config(
-        page_title="Hello",
-        page_icon="👋",
-    )
+# Step 6: Define weight scores for each variable
+weights = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1.5, 1.5, 1.5, 1.5,1.5, 1.5,1.5, 1.5,1.5]
 
-    st.write("# Welcome to Streamlit! 👋")
+# Step 7: Apply weights to the standardized variables
+weighted_data = standardized_data * weights
 
-    st.sidebar.success("Select a demo above.")
+# Step 8: Perform change point detection on weighted data with automatic breakpoint selection using BIC
+model = "rbf"  # you can choose other models, e.g., "l2", "rbf", etc.
+algo = rpt.Pelt(model=model).fit(weighted_data)
+result = algo.predict(pen=1)  # adjust the penalty term as needed
 
-    st.markdown(
-        """
-        Streamlit is an open-source app framework built specifically for
-        Machine Learning and Data Science projects.
-        **👈 Select a demo from the sidebar** to see some examples
-        of what Streamlit can do!
-        ### Want to learn more?
-        - Check out [streamlit.io](https://streamlit.io)
-        - Jump into our [documentation](https://docs.streamlit.io)
-        - Ask a question in our [community
-          forums](https://discuss.streamlit.io)
-        ### See more complex demos
-        - Use a neural net to [analyze the Udacity Self-driving Car Image
-          Dataset](https://github.com/streamlit/demo-self-driving)
-        - Explore a [New York City rideshare dataset](https://github.com/streamlit/demo-uber-nyc-pickups)
-    """
-    )
+# Step 9: Visualize the results with a legend
+plt.figure(figsize=(10, 4))  # Adjust the figure size as needed
 
+# Plot each standardized and weighted element separately and label with element names
+for i in range(weighted_data.shape[1]):
+    plt.plot(weighted_data[:, i], label=data.columns[i + 1])
 
-if __name__ == "__main__":
-    run()
+plt.title('Multivariate Change Point Detection (Standardized and Weighted Data)')
+plt.xlabel('Data Points')
+plt.ylabel('Weighted Values')
+
+# Mark the change points
+for bkp in result:
+    plt.axvline(bkp, linestyle='dashed', color='red')
+
+# Add legend
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+
+# Save the figure as a PNG file
+plt.savefig('standardized_weighted_change_point_detection_plot.png', bbox_inches='tight')
+
+# Show the plot
+plt.show()
